@@ -10,3 +10,4 @@ variable "bucket_name" {
 variable "environment" {
   description = "The environment where the resources are deployed"
   default = "staging"
+}
