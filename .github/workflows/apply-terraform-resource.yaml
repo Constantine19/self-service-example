@@ -121,17 +121,27 @@ jobs:
         with:
           terraform_version: 1.7.5
 
-      - name: Make provider binary executable
+    #   - name: Make provider binary executable
+    #     run: |
+    #       cd terraform-artifact
+    #       chmod +x .terraform/providers/registry.terraform.io/hashicorp/aws/5.42.0/linux_amd64/terraform-provider-aws_v5.42.0_x5
+      - name: Terraform init (apply)
+        id: tfin
         run: |
-          cd terraform-artifact
-          chmod +x .terraform/providers/registry.terraform.io/hashicorp/aws/5.42.0/linux_amd64/terraform-provider-aws_v5.42.0_x5
-
-      - name: Terraform apply resource
-        id:   tf-apply
-        run: |
-          cd terraform-artifact
-          terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
-          
+            set -euo pipefail
+            TF_DIR="terraform-artifact"
+            if [ -f "terraform-artifact/terraform/tfplan-${{ github.event.inputs.port_run_identifier }}" ]; then
+            TF_DIR="terraform-artifact/terraform"
+            fi
+            echo "TF_DIR=$TF_DIR" >> "$GITHUB_ENV"
+            terraform -chdir="$TF_DIR" init -input=false
+            ls -la "$TF_DIR"
+            - name: Terraform apply resource
+                id:   tf-apply
+                run: |
+                cd terraform-artifact
+                terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
+            
       - name: Update Port on status of applying terraform resource (success)
         uses: port-labs/port-github-action@v1
         if: ${{steps.tf-apply.outcome == 'success'}}
