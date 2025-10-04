@@ -1,15 +1,12 @@
-variable "ec2_name" {
-  type = string
-}
-
-variable "pem_key_name" {
-  type = string
-}
-
 variable "aws_region" {
-  type = string
+  description = "The AWS region to deploy the resource to"
+  default     = "eu-west-1"
 }
 
-variable "ec2_instance_type" {
-  type = string
+variable "bucket_name" {
+  description = "The name for the S3 bucket"
 }
+
+variable "environment" {
+  description = "The environment where the resources are deployed"
+  default = "staging"
