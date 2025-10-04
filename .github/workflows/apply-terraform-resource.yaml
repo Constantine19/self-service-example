@@ -141,18 +141,32 @@ jobs:
         run: |
             cd terraform-artifact
             terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
-            
+
       - name: Update Port on status of applying terraform resource (success)
+        if: ${{ steps.tf-apply.outcome == 'success' }}
+        continue-on-error: true           # 👈 don't fail on 422
         uses: port-labs/port-github-action@v1
-        if: ${{steps.tf-apply.outcome == 'success'}}
         with:
-          clientId: ${{ secrets.PORT_CLIENT_ID }}
-          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          baseUrl: https://api.getport.io
-          operation: PATCH_RUN
-          runId: ${{fromJson(inputs.port_context).runId}}
-          logMessage: |
-              ✅ Cloud resource successfully provisioned and available in AWS!
+            clientId: ${{ secrets.PORT_CLIENT_ID }}
+            clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+            baseUrl: https://api.getport.io
+            operation: PATCH_RUN
+            runId: ${{ fromJson(inputs.port_context).runId }}
+            status: "SUCCESS"               # 👈 set explicit status
+            logMessage: |
+                ✅ Cloud resource successfully provisioned and available in AWS!
+            
+    #   - name: Update Port on status of applying terraform resource (success)
+    #     uses: port-labs/port-github-action@v1
+    #     if: ${{steps.tf-apply.outcome == 'success'}}
+    #     with:
+    #       clientId: ${{ secrets.PORT_CLIENT_ID }}
+    #       clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+    #       baseUrl: https://api.getport.io
+    #       operation: PATCH_RUN
+    #       runId: ${{fromJson(inputs.port_context).runId}}
+    #       logMessage: |
+    #           ✅ Cloud resource successfully provisioned and available in AWS!
 
       - name: Get current timestamp
         id: timestamp
