@@ -1,0 +1,87 @@
+name: Plan a Cloud Resource using Terraform
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_name:
+        type: string
+        required: true
+      port_context:
+        required: true
+        description: >-
+          Port's payload, including details for who triggered the action and
+          general context (blueprint, run id, etc...)
+jobs:
+  plan-and-request-approval-for-bucket:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log starting of s3 bucket creation 
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).runId}}
+          logMessage: |
+              About to create an s3 bucket with name: ${{ github.event.inputs.bucket_name }} ... ⛴️
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-session-token: '${{ secrets.AWS_SESSION_TOKEN }}'
+          aws-region: '${{ secrets.AWS_REGION }}'
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+          
+      - name: Terraform Plan
+        id:   plan
+        env:
+          TF_VAR_bucket_name:  "${{ github.event.inputs.bucket_name }}"
+          TF_VAR_aws_region: "${{ secrets.AWS_REGION }}"
+        run: |
+          cd terraform
+          terraform init
+          terraform validate
+          terraform plan \
+            -input=false \
+            -out=tfplan-${{fromJson(inputs.port_context).runId}}
+          terraform show -json tfplan-${{fromJson(inputs.port_context).runId}} > tfplan.json
+
+      - name: Upload Terraform Plan Artifact
+        uses: actions/upload-artifact@v4
+        id: artifact-upload-step
+        with:
+          name: tfplan-${{fromJson(inputs.port_context).runId}}
+          path: terraform/
+          retention-days: 7 ## change this to preferred number of days to keep the artifact before deletion
+      
+      - name: Update Port on successful plan and upload of terraform resource
+        if: ${{ steps.plan.outcome == 'success' && steps.artifact-upload-step.outcome == 'success' }}
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).runId}}
+          logMessage: |
+              ✅ S3 bucket planned successfully! Waiting for approval to apply the changes.
+
+      - name: Update Port on unsuccessful plan of terraform resource
+        if: ${{ steps.plan.outcome != 'success' || steps.artifact-upload-step.outcome != 'success' }}
+        uses: port-labs/port-github-action@v1
+        with:
+          clientId: ${{ secrets.PORT_CLIENT_ID }}
+          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+          baseUrl: https://api.getport.io
+          operation: PATCH_RUN
+          runId: ${{fromJson(inputs.port_context).runId}}
+          status: "FAILURE"
+          logMessage: |
+              ❌ Error occurred while planning or saving terraform resource. Please check the workflow logs.
