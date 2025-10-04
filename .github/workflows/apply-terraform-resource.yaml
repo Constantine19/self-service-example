@@ -136,11 +136,11 @@ jobs:
             echo "TF_DIR=$TF_DIR" >> "$GITHUB_ENV"
             terraform -chdir="$TF_DIR" init -input=false
             ls -la "$TF_DIR"
-            - name: Terraform apply resource
-                id:   tf-apply
-                run: |
-                cd terraform-artifact
-                terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
+      - name: Terraform apply resource
+        id:   tf-apply
+        run: |
+            cd terraform-artifact
+            terraform apply tfplan-${{ github.event.inputs.port_run_identifier }}
             
       - name: Update Port on status of applying terraform resource (success)
         uses: port-labs/port-github-action@v1
