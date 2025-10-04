@@ -26,13 +26,6 @@ jobs:
           logMessage: |
               About to create an s3 bucket with name: ${{ github.event.inputs.bucket_name }} ... ⛴️
 
-      - name: Debug AWS creds (safe)
-        run: |
-            echo "::add-mask::$AWS_SESSION_TOKEN"
-            echo "AWS CLI: $(aws --version)"
-            aws sts get-caller-identity
-
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
