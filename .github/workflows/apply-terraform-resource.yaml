@@ -30,6 +30,12 @@ jobs:
           logMessage: |
               🚀 Applying terraform configuration that was approved in run: ${{ github.event.inputs.port_run_identifier }}
 
+      - name: Debug AWS creds (safe)
+        run: |
+            echo "::add-mask::$AWS_SESSION_TOKEN"
+            echo "AWS CLI: $(aws --version)"
+            aws sts get-caller-identity
+        
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
