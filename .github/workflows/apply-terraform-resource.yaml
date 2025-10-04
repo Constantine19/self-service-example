@@ -174,31 +174,67 @@ jobs:
 
       - name: Create cloud resource in Port
         uses: port-labs/port-github-action@v1
-        if: ${{steps.tf-apply.outcome == 'success'}}
+        if: ${{ steps.tf-apply.outcome == 'success' }}
         with:
-          clientId: ${{ secrets.PORT_CLIENT_ID }}
-          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          baseUrl: https://api.getport.io
-          operation: UPSERT
-          identifier: ${{ github.event.inputs.bucket_name }}
-          blueprint: cloudResource
-          properties: |-
-            {
-              "type": "storage",
-              "provider": "AWS",
-              "region": "${{ secrets.AWS_REGION }}",
-              "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ github.event.inputs.bucket_name }}",
-              "created_at": "${{ steps.timestamp.outputs.current_time }}"
-            }
-
+            clientId: ${{ secrets.PORT_CLIENT_ID }}
+            clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+            baseUrl: https://api.getport.io
+            operation: UPSERT
+            identifier: ${{ github.event.inputs.bucket_name }}
+            blueprint: cloudResource
+            properties: |-
+                {
+                    "type": "storage",
+                    "provider": "AWS",
+                    "region": "${{ secrets.AWS_REGION }}",
+                    "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ github.event.inputs.bucket_name }}",
+                    "created_at": "${{ steps.timestamp.outputs.current_time }}"
+                }
+                relations: |-
+                {
+                    "account": "${{ secrets.AWS_ACCOUNT_ID }}"
+                }
       - name: Update Port on status of applying terraform resource (failure)
         uses: port-labs/port-github-action@v1
-        if: ${{steps.tf-apply.outcome != 'success'}}
+        if: ${{ steps.tf-apply.outcome != 'success' }}
+        continue-on-error: true
         with:
-          clientId: ${{ secrets.PORT_CLIENT_ID }}
-          clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-          baseUrl: https://api.getport.io
-          operation: PATCH_RUN
-          runId: ${{fromJson(inputs.port_context).runId}}
-          logMessage: |
-              ❌ Cloud resource could not be provisioned. Please check the workflow logs for details.
+            clientId: ${{ secrets.PORT_CLIENT_ID }}
+            clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+            baseUrl: https://api.getport.io
+            operation: PATCH_RUN
+            runId: ${{ fromJson(inputs.port_context).runId }}
+            status: "FAILURE"
+            logMessage: |
+                ❌ Cloud resource could not be provisioned. Please check the workflow logs for details.
+
+    #   - name: Create cloud resource in Port
+    #     uses: port-labs/port-github-action@v1
+    #     if: ${{steps.tf-apply.outcome == 'success'}}
+    #     with:
+    #       clientId: ${{ secrets.PORT_CLIENT_ID }}
+    #       clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+    #       baseUrl: https://api.getport.io
+    #       operation: UPSERT
+    #       identifier: ${{ github.event.inputs.bucket_name }}
+    #       blueprint: cloudResource
+    #       properties: |-
+    #         {
+    #           "type": "storage",
+    #           "provider": "AWS",
+    #           "region": "${{ secrets.AWS_REGION }}",
+    #           "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ github.event.inputs.bucket_name }}",
+    #           "created_at": "${{ steps.timestamp.outputs.current_time }}"
+    #         }
+
+    #   - name: Update Port on status of applying terraform resource (failure)
+    #     uses: port-labs/port-github-action@v1
+    #     if: ${{steps.tf-apply.outcome != 'success'}}
+    #     with:
+    #       clientId: ${{ secrets.PORT_CLIENT_ID }}
+    #       clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+    #       baseUrl: https://api.getport.io
+    #       operation: PATCH_RUN
+    #       runId: ${{fromJson(inputs.port_context).runId}}
+    #       logMessage: |
+    #           ❌ Cloud resource could not be provisioned. Please check the workflow logs for details.
