@@ -179,7 +179,7 @@ jobs:
                 }
             relations: |-
                 {
-                    "account": "${{ secrets.AWS_ACCOUNT_ID }}"
+                    "account": "${{ steps.acct.outputs.id }}"
                 }
       - name: Update Port on status of applying terraform resource (failure)
         uses: port-labs/port-github-action@v1
