@@ -155,18 +155,6 @@ jobs:
             status: "SUCCESS"               # 👈 set explicit status
             logMessage: |
                 ✅ Cloud resource successfully provisioned and available in AWS!
-            
-    #   - name: Update Port on status of applying terraform resource (success)
-    #     uses: port-labs/port-github-action@v1
-    #     if: ${{steps.tf-apply.outcome == 'success'}}
-    #     with:
-    #       clientId: ${{ secrets.PORT_CLIENT_ID }}
-    #       clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
-    #       baseUrl: https://api.getport.io
-    #       operation: PATCH_RUN
-    #       runId: ${{fromJson(inputs.port_context).runId}}
-    #       logMessage: |
-    #           ✅ Cloud resource successfully provisioned and available in AWS!
 
       - name: Get current timestamp
         id: timestamp
@@ -189,7 +177,7 @@ jobs:
                     "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ github.event.inputs.bucket_name }}",
                     "created_at": "${{ steps.timestamp.outputs.current_time }}"
                 }
-                relations: |-
+            relations: |-
                 {
                     "account": "${{ secrets.AWS_ACCOUNT_ID }}"
                 }
