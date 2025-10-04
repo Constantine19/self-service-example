@@ -156,9 +156,44 @@ jobs:
             logMessage: |
                 ✅ Cloud resource successfully provisioned and available in AWS!
 
+
+      - name: Get AWS account id
+        id: acct
+        run: |
+            set -euo pipefail
+            ACC=$(aws sts get-caller-identity --query Account --output text | tr -d '\r\n ')
+            if [ -z "$ACC" ]; then
+            echo "Failed to resolve AWS account id"; exit 1
+            fi
+            echo "id=$ACC" >> "$GITHUB_OUTPUT"
       - name: Get current timestamp
         id: timestamp
-        run: echo "::set-output name=current_time::$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')"
+        run: echo "::set-output name=current_time::$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')" >> "$GITHUB_OUTPUT"
+
+        # Upsert the cloud resource in Port (note: relations is separate from properties)
+      - name: Create cloud resource in Port
+        uses: port-labs/port-github-action@v1
+        if: ${{ steps.tf-apply.outcome == 'success' }}
+        with:
+            clientId: ${{ secrets.PORT_CLIENT_ID }}
+            clientSecret: ${{ secrets.PORT_CLIENT_SECRET }}
+            baseUrl: https://api.getport.io
+            operation: UPSERT
+            identifier: ${{ github.event.inputs.bucket_name }}
+            blueprint: cloudResource
+            properties: |-
+                {
+                    "type": "storage",
+                    "provider": "AWS",
+                    "region": "${{ secrets.AWS_REGION }}",
+                    "link": "https://s3.console.aws.amazon.com/s3/buckets/${{ github.event.inputs.bucket_name }}",
+                    "created_at": "${{ steps.timestamp.outputs.current_time }}"
+                }
+            relations: |-
+                {
+                    "account": "${{ steps.acct.outputs.id }}"
+                }
+
       - name: Create cloud resource in Port
         uses: port-labs/port-github-action@v1
         if: ${{ steps.tf-apply.outcome == 'success' }}
