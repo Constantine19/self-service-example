@@ -1,4 +1,9 @@
 name: Apply Terraform Resource
+
+permissions:
+  contents: read
+  actions: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -39,38 +44,75 @@ jobs:
           aws-region: '${{ secrets.AWS_REGION }}'
 
 
-      - name: Download Terraform plan artifact from the previous workflow run
-        run: |          
-          mkdir terraform-artifact
-          cd terraform-artifact
-          # Get the artifact download URL by name
-          artifact_url=$(curl -sSL \
-            -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
-            | jq -r --arg artifact_name "tfplan-${{ github.event.inputs.port_run_identifier }}" \
-            '.artifacts[] | select(.name == $artifact_name) | .archive_download_url')
+    #   - name: Download Terraform plan artifact from the previous workflow run
+    #     run: |          
+    #       mkdir terraform-artifact
+    #       cd terraform-artifact
+    #       # Get the artifact download URL by name
+    #       artifact_url=$(curl -sSL \
+    #         -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
+    #         -H "Accept: application/vnd.github.v3+json" \
+    #         "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" \
+    #         | jq -r --arg artifact_name "tfplan-${{ github.event.inputs.port_run_identifier }}" \
+    #         '.artifacts[] | select(.name == $artifact_name) | .archive_download_url')
           
-          if [ "$artifact_url" == "null" ] || [ -z "$artifact_url" ]; then
-            echo "❌ Terraform plan artifact not found for run: ${{ github.event.inputs.port_run_identifier }}"
-            exit 1
-          fi
+    #       if [ "$artifact_url" == "null" ] || [ -z "$artifact_url" ]; then
+    #         echo "❌ Terraform plan artifact not found for run: ${{ github.event.inputs.port_run_identifier }}"
+    #         exit 1
+    #       fi
           
-          # Download and extract the artifact
-          curl -sSL -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
-            -o terraform-artifact.zip "$artifact_url"
+    #       # Download and extract the artifact
+    #       curl -sSL -H "Authorization: Bearer ${{ secrets.MY_GITHUB_TOKEN }}" \
+    #         -o terraform-artifact.zip "$artifact_url"
             
-          if [ $? -ne 0 ]; then
-            echo "❌ Failed to download artifact. Exiting."
-            exit 1
-          fi
+    #       if [ $? -ne 0 ]; then
+    #         echo "❌ Failed to download artifact. Exiting."
+    #         exit 1
+    #       fi
           
-          unzip -qq terraform-artifact.zip
-          if [ $? -ne 0 ]; then
-            echo "❌ Failed to extract artifact. Exiting."
-            exit 1
-          fi
-        
+    #       unzip -qq terraform-artifact.zip
+    #       if [ $? -ne 0 ]; then
+    #         echo "❌ Failed to extract artifact. Exiting."
+    #         exit 1
+    #       fi
+
+      - name: List artifacts (first 100)
+        run: |
+            curl -fsSL \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            | jq -r '.artifacts[].name'
+
+      - name: Wait for and download Terraform plan artifact
+        env:
+            ART_NAME: tfplan-${{ github.event.inputs.port_run_identifier }}
+        run: |
+            set -euo pipefail
+            mkdir -p terraform-artifact
+            cd terraform-artifact
+
+            # wait up to ~5 minutes (30 x 10s) for the artifact to appear
+            for i in {1..30}; do
+                artifact_url=$(curl -fsSL \
+                -H "Authorization: Bearer ${{ github.token }}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+                | jq -r --arg name "$ART_NAME" '.artifacts[] | select(.name==$name) | .archive_download_url' | head -n1)
+
+                if [ -n "$artifact_url" ] && [ "$artifact_url" != "null" ]; then
+                echo "Found artifact: $ART_NAME"
+                curl -fsSL -H "Authorization: Bearer ${{ github.token }}" -o artifact.zip "$artifact_url"
+                unzip -qq artifact.zip
+                break
+                fi
+
+                echo "Artifact not ready yet, retrying... ($i/30)"
+                sleep 10
+            done
+
+            test -f tfplan-* || { echo "❌ Artifact never appeared."; exit 1; }
+            ls -la  
       - name: List contents of working directory
         run: ls -la terraform-artifact
         
