@@ -13,10 +13,10 @@ on:
         required: false
         default: "t3.micro"
         type: string
-      pem_key_name:
-        description: EC2 pem key
-        required: true
-        type: string
+    #   pem_key_name:
+    #     description: EC2 pem key
+    #     required: true
+    #     type: string
       port_context:
         required: true
         description: includes blueprint, run ID, and entity identifier from Port.
